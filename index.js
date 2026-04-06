@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const { query } = require("@qwen-code/sdk");
 const path = require("path");
+const crypto = require("crypto");
 const fs = require("fs");
 const winston = require("winston");
 
@@ -96,10 +97,15 @@ async function chat(systemPrompt, userInput) {
   const stream = query({
     prompt: userInput,
     options: {
+      model: "qwen-turbo",
       systemPrompt,
-      permissionMode: "plan",
+      permissionMode: "default",
+      sessionId: crypto.randomUUID(),
+      maxSessionTurns: 1,
       authType: "qwen-oauth",
       env: getProjectQwenEnv(),
+      resume: undefined,
+      includePartialMessages: true,
       excludeTools: [
         "read_file",
         "write_file",
@@ -114,21 +120,29 @@ async function chat(systemPrompt, userInput) {
   });
 
   let responseText = "";
+  let modelUsage = null;
 
   for await (const message of stream) {
     if (message.type === "result") {
       if (message.is_error) {
         throw new Error(message.error?.message ?? "Unknown error");
       }
+
       responseText += message.result ?? "";
+
+      // Capture modelUsage if available
+      if (message.usage) {
+        modelUsage = message.usage;
+      }
     }
   }
   const duration = Date.now() - startTime;
   logger.info("Chat request completed", {
     duration,
     responseLength: responseText?.length,
+    modelUsage,
   });
-  return responseText;
+  return { responseText, modelUsage };
 }
 
 setupQwenAuth();
@@ -156,9 +170,9 @@ app.post("/api/chat", async (req, res) => {
     }
 
     logger.info("Calling chat function", { hasSystemPrompt: !!prompt });
-    const response = await chat(prompt || "", userInput);
+    const { responseText, modelUsage } = await chat(prompt, userInput);
     logger.info("Chat response sent successfully");
-    res.json({ response });
+    res.json({ response: responseText, modelUsage });
   } catch (error) {
     logger.error("Chat error", { error: error.message, stack: error.stack });
     res.status(500).json({
