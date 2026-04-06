@@ -15,15 +15,16 @@ const logger = winston.createLogger({
   transports: [
     new winston.transports.File({ filename: "error.log", level: "error" }),
     new winston.transports.File({ filename: "combined.log" }),
+    new winston.transports.Console(),
   ],
 });
 
+// Optional: keep file logs only for local
 if (process.env.NODE_ENV !== "production") {
   logger.add(
-    new winston.transports.Console({
-      format: winston.format.simple(),
-    }),
+    new winston.transports.File({ filename: "error.log", level: "error" }),
   );
+  logger.add(new winston.transports.File({ filename: "combined.log" }));
 }
 
 function setupQwenAuth() {
