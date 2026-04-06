@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const { query } = require("@qwen-code/sdk");
 const path = require("path");
+const winston = require("winston");
 
 const logger = winston.createLogger({
   level: "info",
