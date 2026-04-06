@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const { query } = require("@qwen-code/sdk");
 const path = require("path");
+const fs = require("fs");
 const winston = require("winston");
 
 const logger = winston.createLogger({
@@ -16,6 +17,39 @@ const logger = winston.createLogger({
     new winston.transports.File({ filename: "combined.log" }),
   ],
 });
+
+function setupQwenAuth() {
+  const {
+    QWEN_ACCESS_TOKEN,
+    QWEN_REFRESH_TOKEN,
+    QWEN_TOKEN_EXPIRY_DATE,
+    QWEN_TOKEN_TYPE,
+    QWEN_RESOURCE_URL,
+  } = process.env;
+
+  if (!QWEN_ACCESS_TOKEN) {
+    logger.error(`QWEN_ACCESS_TOKEN not found in env. Skipping qwen setup`);
+    return;
+  }
+
+  const qwenDir = path.join(__dirname, ".qwen");
+  const credsFile = path.join(qwenDir, "oauth_creds.json");
+
+  if (!fs.existsSync(qwenDir)) {
+    fs.mkdirSync(qwenDir, { recursive: true });
+  }
+
+  const data = {
+    access_token: QWEN_ACCESS_TOKEN,
+    token_type: QWEN_TOKEN_TYPE,
+    refresh_token: QWEN_REFRESH_TOKEN,
+    resource_url: QWEN_RESOURCE_URL,
+    expiry_date: parseInt(QWEN_TOKEN_EXPIRY_DATE),
+  };
+
+  fs.writeFileSync(credsFile, JSON.stringify(data, null, 2));
+  logger.info(`Generated  ${credsFile} from .env`);
+}
 
 /**
  * Returns env overrides that redirect the CLI to read .qwen from the project root
@@ -85,28 +119,7 @@ async function chat(systemPrompt, userInput) {
   return responseText;
 }
 
-const systemPrompt = `You are a travel story extractor. Extract information from the user's travel story and return it as JSON.
-
-    Extract the following information and return ONLY a JSON object with these fields:
-    - title: A short title for the story
-    - cleaned_story: Rewrite the story with proper grammar, spelling, and remove any offensive words. Keep it respectful and well-written.
-    - location_name: The main city or place visited
-    - country: The country
-    - duration_days: Number of days spent (as a number)
-    - key_visited_places: Array of 5-6 specific places/landmarks visited (e.g., ["Fushimi Inari Shrine", "Arashiyama Bamboo Grove", "Gion District"])
-    - activities: List of main activities done (as an array of strings)
-    - highlights: List of memorable moments (as an array of strings)
-    - food: List of food items tried (as an array of strings)
-    - overall_feeling: One word describing the overall emotion
-
-    Return ONLY the JSON object. Do not write any explanation. Do not use markdown. Start your response with {{ and end with }}. Make sure the JSON is properly formatted and can be parsed without errors.
-
-    `;
-
-const story = `Last month I visited Goa with my cousins and we stayed at Sea Breeze Resort near Baga Beach. The hotel was decent but room service was kinda slow. We spend most time at Calangute Beach doing parasailing and jet ski, it was super fun but little expensive. Tried seafood like prawn curry and fish thali at a local shack, taste was really good but little spicy. One evening we went to Tito's lane for nightlife, music was loud and crowd was crazy. Overall trip was chill but bit tiring also.`;
-
-// Example usage:
-// chat(systemPrompt, story).then(console.log).catch(console.error);
+setupQwenAuth();
 
 // Express Server Setup
 const express = require("express");

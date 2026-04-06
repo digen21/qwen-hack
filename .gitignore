@@ -1,1 +1,9 @@
 /node_modules
+*.log
+.env
+
+# Ignore all files inside .qwen
+.qwen/*
+
+# BUT, allow the empty .gitkeep file so the folder is created
+!.qwen/.gitkeep
