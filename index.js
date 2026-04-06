@@ -18,6 +18,14 @@ const logger = winston.createLogger({
   ],
 });
 
+if (process.env.NODE_ENV !== "production") {
+  logger.add(
+    new winston.transports.Console({
+      format: winston.format.simple(),
+    }),
+  );
+}
+
 function setupQwenAuth() {
   const {
     QWEN_ACCESS_TOKEN,
@@ -26,6 +34,8 @@ function setupQwenAuth() {
     QWEN_TOKEN_TYPE,
     QWEN_RESOURCE_URL,
   } = process.env;
+
+  logger.info(`========== Building Qwen Auth ==========`);
 
   if (!QWEN_ACCESS_TOKEN) {
     logger.error(`QWEN_ACCESS_TOKEN not found in env. Skipping qwen setup`);
@@ -49,6 +59,7 @@ function setupQwenAuth() {
 
   fs.writeFileSync(credsFile, JSON.stringify(data, null, 2));
   logger.info(`Generated  ${credsFile} from .env`);
+  logger.info(`========== Building Qwen Auth Completed ==========`);
 }
 
 /**
@@ -149,7 +160,9 @@ app.post("/api/chat", async (req, res) => {
     res.json({ response });
   } catch (error) {
     logger.error("Chat error", { error: error.message, stack: error.stack });
-    res.status(500).json({ error: "Failed to process chat request" });
+    res
+      .status(500)
+      .json({ error: "Failed to process chat request", log: error?.message });
   }
 });
 
