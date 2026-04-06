@@ -116,10 +116,9 @@ async function chat(systemPrompt, userInput) {
   let responseText = "";
 
   for await (const message of stream) {
-    // if (message.type === 'assistant') {
-    //   responseText += message.message.content;
-    // } else
-    if (message.type === "result") {
+    if (message.type === "assistant") {
+      responseText += message.message?.content || "";
+    } else if (message.type === "result" && !responseText) {
       responseText += message.result ?? "";
     }
   }
@@ -160,28 +159,10 @@ app.post("/api/chat", async (req, res) => {
     logger.info("Chat response sent successfully");
     res.json({ response });
   } catch (error) {
-    const projectRoot = process.cwd();
-    const qwenDir = path.join(projectRoot, ".qwen");
-    const credsFile = path.join(qwenDir, "oauth_creds.json");
-
-    // Debug logs
-    logger.info("Qwen Env Debug", {
-      projectRoot,
-      qwenDirExists: fs.existsSync(qwenDir),
-      credsFileExists: fs.existsSync(credsFile),
-      credsFilePath: credsFile,
-    });
-
     logger.error("Chat error", { error: error.message, stack: error.stack });
     res.status(500).json({
       error: "Failed to process chat request",
       log: error?.message,
-      info: {
-        projectRoot,
-        qwenDirExists: fs.existsSync(qwenDir),
-        credsFileExists: fs.existsSync(credsFile),
-        credsFilePath: credsFile,
-      },
     });
   }
 });
