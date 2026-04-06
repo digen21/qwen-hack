@@ -48,7 +48,7 @@ async function chat(systemPrompt, userInput) {
 }
 
 const systemPrompt = `You are a travel story extractor. Extract information from the user's travel story and return it as JSON.
-    
+
     Extract the following information and return ONLY a JSON object with these fields:
     - title: A short title for the story
     - cleaned_story: Rewrite the story with proper grammar, spelling, and remove any offensive words. Keep it respectful and well-written.
@@ -68,4 +68,31 @@ const systemPrompt = `You are a travel story extractor. Extract information from
 const story = `Last month I visited Goa with my cousins and we stayed at Sea Breeze Resort near Baga Beach. The hotel was decent but room service was kinda slow. We spend most time at Calangute Beach doing parasailing and jet ski, it was super fun but little expensive. Tried seafood like prawn curry and fish thali at a local shack, taste was really good but little spicy. One evening we went to Tito's lane for nightlife, music was loud and crowd was crazy. Overall trip was chill but bit tiring also.`;
 
 // Example usage:
-chat(systemPrompt, story).then(console.log).catch(console.error);
+// chat(systemPrompt, story).then(console.log).catch(console.error);
+
+// Express Server Setup
+const express = require("express");
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+
+app.post("/api/chat", async (req, res) => {
+  try {
+    const { systemPrompt: prompt, userInput } = req.body;
+
+    if (!userInput) {
+      return res.status(400).json({ error: "userInput is required" });
+    }
+
+    const response = await chat(prompt || "", userInput);
+    res.json({ response });
+  } catch (error) {
+    console.error("Chat error:", error);
+    res.status(500).json({ error: "Failed to process chat request" });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
