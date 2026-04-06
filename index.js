@@ -116,9 +116,10 @@ async function chat(systemPrompt, userInput) {
   let responseText = "";
 
   for await (const message of stream) {
-    if (message.type === "assistant") {
-      responseText += message.message?.content || "";
-    } else if (message.type === "result" && !responseText) {
+    if (message.type === "result") {
+      if (message.is_error) {
+        throw new Error(message.error?.message ?? "Unknown error");
+      }
       responseText += message.result ?? "";
     }
   }
