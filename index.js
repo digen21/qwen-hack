@@ -1,6 +1,7 @@
 require("dotenv").config();
+
 const { query } = require("@qwen-code/sdk");
-const winston = require("winston");
+const path = require("path");
 
 const logger = winston.createLogger({
   level: "info",
@@ -15,12 +16,19 @@ const logger = winston.createLogger({
   ],
 });
 
-if (process.env.NODE_ENV !== "production") {
-  logger.add(
-    new winston.transports.Console({
-      format: winston.format.simple(),
-    }),
-  );
+/**
+ * Returns env overrides that redirect the CLI to read .qwen from the project root
+ * instead of the user's home directory (~/.qwen).
+ */
+function getProjectQwenEnv() {
+  const projectRoot = process.cwd();
+
+  return {
+    // On Linux/Mac servers, HOME controls where ~/.qwen is resolved
+    HOME: projectRoot,
+    // On Windows, USERPROFILE is used instead
+    USERPROFILE: projectRoot,
+  };
 }
 
 /**
@@ -44,9 +52,7 @@ async function chat(systemPrompt, userInput) {
       systemPrompt,
       permissionMode: "plan",
       authType: "qwen-oauth",
-      // env: {
-      //   OPENAI_API_KEY: "0da84693-66ca-43d4-8ac4-776c36f5f27a",
-      // },
+      env: getProjectQwenEnv(),
       excludeTools: [
         "read_file",
         "write_file",
