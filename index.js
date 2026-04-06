@@ -57,7 +57,7 @@ function setupQwenAuth() {
     expiry_date: parseInt(QWEN_TOKEN_EXPIRY_DATE),
   };
 
-  fs.writeFileSync(credsFile, JSON.stringify(data, null, 2));
+  fs.writeFileSync(credsFile, JSON.stringify(data, null, 2), "utf-8");
   logger.info(`Generated  ${credsFile} from .env`);
   logger.info(`========== Building Qwen Auth Completed ==========`);
 }
@@ -159,10 +159,29 @@ app.post("/api/chat", async (req, res) => {
     logger.info("Chat response sent successfully");
     res.json({ response });
   } catch (error) {
+    const projectRoot = process.cwd();
+    const qwenDir = path.join(projectRoot, ".qwen");
+    const credsFile = path.join(qwenDir, "oauth_creds.json");
+
+    // Debug logs
+    logger.info("Qwen Env Debug", {
+      projectRoot,
+      qwenDirExists: fs.existsSync(qwenDir),
+      credsFileExists: fs.existsSync(credsFile),
+      credsFilePath: credsFile,
+    });
+
     logger.error("Chat error", { error: error.message, stack: error.stack });
-    res
-      .status(500)
-      .json({ error: "Failed to process chat request", log: error?.message });
+    res.status(500).json({
+      error: "Failed to process chat request",
+      log: error?.message,
+      info: {
+        projectRoot,
+        qwenDirExists: fs.existsSync(qwenDir),
+        credsFileExists: fs.existsSync(credsFile),
+        credsFilePath: credsFile,
+      },
+    });
   }
 });
 
