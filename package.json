@@ -14,7 +14,8 @@
     "@qwen-code/sdk": "^0.1.6",
     "dotenv": "^17.4.1",
     "express": "^5.2.1",
-    "expressjs": "^1.0.1"
+    "expressjs": "^1.0.1",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

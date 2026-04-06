@@ -1,5 +1,27 @@
 require("dotenv").config();
 const { query } = require("@qwen-code/sdk");
+const winston = require("winston");
+
+const logger = winston.createLogger({
+  level: "info",
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json(),
+  ),
+  transports: [
+    new winston.transports.File({ filename: "error.log", level: "error" }),
+    new winston.transports.File({ filename: "combined.log" }),
+  ],
+});
+
+if (process.env.NODE_ENV !== "production") {
+  logger.add(
+    new winston.transports.Console({
+      format: winston.format.simple(),
+    }),
+  );
+}
 
 /**
  * Send a system prompt and user input to Qwen, return the full response as text.
@@ -10,7 +32,12 @@ const { query } = require("@qwen-code/sdk");
  * @returns {Promise<string>}   - The complete assistant response as a single string.
  */
 async function chat(systemPrompt, userInput) {
-  console.time();
+  logger.info("Starting chat request", {
+    systemPromptLength: systemPrompt?.length,
+    userInputLength: userInput?.length,
+  });
+  const startTime = Date.now();
+
   const stream = query({
     prompt: userInput,
     options: {
@@ -28,7 +55,7 @@ async function chat(systemPrompt, userInput) {
         "delete_file",
       ],
       stderr: (message) => {
-        console.log("[CLI stderr]:", message);
+        logger.warn("CLI stderr", { message });
       },
     },
   });
@@ -43,7 +70,11 @@ async function chat(systemPrompt, userInput) {
       responseText += message.result ?? "";
     }
   }
-  console.timeEnd();
+  const duration = Date.now() - startTime;
+  logger.info("Chat request completed", {
+    duration,
+    responseLength: responseText?.length,
+  });
   return responseText;
 }
 
@@ -78,21 +109,30 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
 app.post("/api/chat", async (req, res) => {
+  logger.info("Received chat request", {
+    method: req.method,
+    path: req.path,
+    ip: req.ip,
+  });
+
   try {
     const { systemPrompt: prompt, userInput } = req.body;
 
     if (!userInput) {
+      logger.warn("Missing userInput in request");
       return res.status(400).json({ error: "userInput is required" });
     }
 
+    logger.info("Calling chat function", { hasSystemPrompt: !!prompt });
     const response = await chat(prompt || "", userInput);
+    logger.info("Chat response sent successfully");
     res.json({ response });
   } catch (error) {
-    console.error("Chat error:", error);
+    logger.error("Chat error", { error: error.message, stack: error.stack });
     res.status(500).json({ error: "Failed to process chat request" });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  logger.info(`Server running on http://localhost:${PORT}`);
 });
